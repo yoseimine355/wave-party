@@ -844,6 +844,10 @@
   #galleryBtn{ display:none !important; }
   #partyRecipientSlot{ display:none !important; }
   .view-pref{ display:none !important; }
+  /* ギャラリーのカードより下（回答一覧・写真）は不要（2026-11-14 本人指示） */
+  #galleryAnswers{ display:none !important; }
+  .gallery-sec:has(#galleryPhotos){ display:none !important; }
+  #galleryPhotosTitle, #galleryPhotos{ display:none !important; }
 </style>
 </head>
 <body>
