@@ -839,6 +839,11 @@
   #artworkOverlay.img-only #postcard{ background:transparent; box-shadow:none; padding:0; }
   #artworkOverlay.img-only #cardImage{ width:min(88vw,430px); height:auto; border-radius:18px; display:block; }
   #artworkOverlay.img-only .tap-hint{ display:none !important; }
+  /* 画面の不要物スリム化（2026-11-14 本人指摘）: スタンプ・重複ボタン・旧設定を隠す */
+  #stampsBlock{ display:none !important; }
+  #galleryBtn{ display:none !important; }
+  #partyRecipientSlot{ display:none !important; }
+  .view-pref{ display:none !important; }
 </style>
 </head>
 <body>
@@ -2207,6 +2212,7 @@
   var queuedSealed = null;
   var genTimers = [];
   function onGenerating(p) {
+    if (instantMockShown) return;
     // 宛先指定つきの生成演出は、その人の画面でだけ出す
     if (p && typeof p.to_device_id === 'string' && p.to_device_id && p.to_device_id !== deviceId) return;
     if (cardVisible() || generatingActive) return;
@@ -2791,6 +2797,17 @@
     }
   }
 
+  // ================= 生成後すぐ画像（会場画面を経ずモック画像を即表示） =================
+  var MOCK_IMAGE_URL = 'https://yyphxcdgjlezbkfodqna.supabase.co/storage/v1/object/public/wave-art/card-mock.jpg';
+  var instantMockShown = false;
+  function finishToImage() {
+    if (instantMockShown) return;
+    instantMockShown = true;
+    if (!goSent()) { markGoSent(); persistWord('go', 'go'); }
+    showArtwork({ id: 'instant-mock', title: '', body: '', words: [], fromName: nickname, imageUrl: MOCK_IMAGE_URL });
+    finishDelivery();
+  }
+
   // ================= 生成GO（答え終わったらGOで生成開始） =================
   var GO_KEY = 'wave-go-sent';
   function goSent() { try { return localStorage.getItem(GO_KEY) === '1'; } catch (e) { return false; } }
@@ -2800,11 +2817,8 @@
     if (b) b.hidden = !(flowDone && !goSent());
   }
   function onGenGo() {
-    if (goSent()) return;
-    markGoSent();
+    finishToImage();
     updateGenGoBtn();
-    persistWord('go', 'go');
-    onGenerating({});
   }
 
   function enterParty() {
@@ -2812,25 +2826,9 @@
     flowDone = true;
     try { localStorage.setItem('wave-flow-done', '1'); } catch (e) { /* noop */ }
     $('flowSteps').hidden = true;
-    // お題カードはパーティー画面へ引っ越して、そのまま追加・変更に使える
-    TOPICS.forEach(function (tp) {
-      var card = $('stepQ-' + tp);
-      if (card) {
-        card.hidden = false;
-        card.classList.remove('current');
-        card.classList.add('in-party');
-        $('partyQuestions').appendChild(card);
-      }
-    });
-    var rc = $('stepRecipient');
-    if (rc) {
-      rc.hidden = true;
-      rc.classList.remove('current');
-      $('partyRecipientSlot').appendChild(rc);
-    }
-    $('partyMain').hidden = false;
-    renderRecipientRow();
-    updateGenGoBtn();
+    // 会場画面は廃止（2026-11-14 本人指示）: 回答が終わったら、そのまま画像を出す
+    $('partyMain').hidden = true;
+    finishToImage();
   }
 
   // ================= デザイン選択 =================
