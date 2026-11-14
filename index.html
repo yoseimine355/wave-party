@@ -832,6 +832,13 @@
   .wave-total{ display:none !important; }
   #chips{ display:none !important; }
   #waveZone{ display:none !important; }
+  /* スキップ廃止：入力しないと先へ進めない（2026-11-14 本人指摘） */
+  .skip-link{ display:none !important; }
+  /* 生成後のカード画面は画像だけ（2026-11-14 本人指示） */
+  #artworkOverlay.img-only #postcard > *:not(#cardImage){ display:none !important; }
+  #artworkOverlay.img-only #postcard{ background:transparent; box-shadow:none; padding:0; }
+  #artworkOverlay.img-only #cardImage{ width:min(88vw,430px); height:auto; border-radius:18px; display:block; }
+  #artworkOverlay.img-only .tap-hint{ display:none !important; }
 </style>
 </head>
 <body>
@@ -2549,6 +2556,7 @@
     currentCard = card;
     var cgBtn = $('cardGoAllBtn');
     if (cgBtn) cgBtn.hidden = !(card && typeof card.fromName === 'string' && nickname && card.fromName === nickname);
+    $('artworkOverlay').classList.toggle('img-only', !!(card && card.imageUrl));
     if (card.cardId != null) shownCardId = card.cardId;
     // 開封されたので封印状態は解ける（アプリと同じ）
     pendingSealed = null;
