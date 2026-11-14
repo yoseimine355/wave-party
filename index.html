@@ -807,6 +807,27 @@
   body.mode-org2 #goBtn{ display:none !important; }
   .hero-img{ display:block; width:min(80vw,340px); height:auto; margin:1vh auto 4px; }
   body.mode-org2 .hero-img{ display:none; }
+  /* 会場を1画面に収める（スクロールなし） */
+  .count-block{ margin-top:6px; }
+  .count-num{ font-size:clamp(52px,15vw,72px); }
+  .wave-zone{ padding:10px 0 2px; }
+  #waveBtn{ width:112px; height:112px; }
+  .chips{ margin:10px 4px 2px; }
+  .flock-block{ padding:2px 8px 0; }
+  .sheep{ width:54px; }
+  .step-card{ margin-top:10px; padding:14px; }
+  .q-progress{ font-size:12px; font-weight:700; color:var(--gold2); letter-spacing:.14em; margin-bottom:6px; }
+  /* 流れるスタンプ */
+  .flow-stamp{ position:fixed; left:0; z-index:56; pointer-events:none; display:flex; align-items:center; gap:8px; font-size:54px; line-height:1; animation:flowAcross 3.4s linear forwards; }
+  .flow-stamp .fs-name{ font-size:14px; font-weight:700; color:#8a6d1f; background:rgba(255,255,255,.92); border:1px solid rgba(217,180,91,.5); padding:3px 10px; border-radius:99px; }
+  @keyframes flowAcross{ from{ transform:translateX(106vw); } to{ transform:translateX(-46vw); } }
+  /* 不要ボタンの整理と生成GO */
+  #recipientRow{ display:none !important; }
+  .mic-btn{ display:none !important; }
+  #genGoBtn{ display:block; margin:16px auto 6px; }
+  #genGoBtn[hidden]{ display:none; }
+  #cardGoAllBtn{ position:relative; z-index:6; margin-top:16px; }
+  #cardGoAllBtn[hidden]{ display:none; }
 </style>
 </head>
 <body>
@@ -906,6 +927,7 @@
   <!-- 参加フロー: お題フォーム → デザイン選択 → メール登録 -->
   <div id="flowSteps" hidden>
     <section class="step-card q-card" id="stepQ-past" hidden>
+      <div class="q-progress">1 / 3</div>
       <div class="step-q js-qtext" data-q="past">今年の一文字</div>
       <form class="q-form" data-topic="past">
         <input class="q-input" data-topic="past" type="text" maxlength="12" autocomplete="off" placeholder="例：挑・翔・笑">
@@ -919,6 +941,7 @@
     </section>
 
     <section class="step-card q-card" id="stepQ-future" hidden>
+      <div class="q-progress">2 / 3</div>
       <div class="step-q js-qtext" data-q="future">来年の一文字</div>
       <form class="q-form" data-topic="future">
         <input class="q-input" data-topic="future" type="text" maxlength="12" autocomplete="off" placeholder="例：翔・進・輝">
@@ -932,6 +955,7 @@
     </section>
 
     <section class="step-card q-card" id="stepQ-toall" hidden>
+      <div class="q-progress">3 / 3</div>
       <div class="step-q js-qtext" data-q="toall">みんなへの一文字</div>
       <form class="q-form" data-topic="toall">
         <input class="q-input" data-topic="toall" type="text" maxlength="12" autocomplete="off" placeholder="例：笑・絆・愛">
@@ -959,6 +983,7 @@
 
   <!-- パーティー画面（フロー完了後に既存要素がここへ集まる） -->
   <div id="partyMain" hidden>
+    <button id="genGoBtn" class="btn-gold go-btn" type="button" hidden>GO →</button>
     <div id="partyQuestions"></div>
     <div class="party-row" id="recipientRow">
       <span id="recipientRowLabel"></span>
@@ -1171,6 +1196,7 @@
     <div id="cardWords"></div>
     <div class="card-foot" id="cardFoot"></div>
   </article>
+  <button id="cardGoAllBtn" class="btn-gold go-btn" type="button" hidden>GO → みんなのカード</button>
   <div class="tap-hint" id="cardHint" hidden>タップで閉じる</div>
 </div>
 
@@ -1620,7 +1646,26 @@
     renderCounts();
     spawnRipple();
     vibrate(25);
-    sendBroadcast('wave', { total: waveCount, from: deviceId, at: Date.now() });
+    flowStamp(getMyName());
+    sendBroadcast('wave', { total: waveCount, from: deviceId, name: getMyName(), at: Date.now() });
+  }
+
+  // スタンプが画面を横に流れる（全員の画面に）
+  function flowStamp(name) {
+    var el = document.createElement('div');
+    el.className = 'flow-stamp';
+    el.style.top = (10 + Math.random() * 26) + '%';
+    var s = document.createElement('span');
+    s.textContent = '🐑';
+    el.appendChild(s);
+    if (name) {
+      var n = document.createElement('span');
+      n.className = 'fs-name';
+      n.textContent = name;
+      el.appendChild(n);
+    }
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, 3500);
   }
 
   function onWave(p) {
@@ -1632,6 +1677,7 @@
     if (p.from !== deviceId) {
       spawnRipple();
       remoteVibrate();
+      flowStamp(typeof p.name === 'string' ? p.name : '');
     }
   }
 
@@ -2253,7 +2299,7 @@
 
   function fetchSealedCard(cardId, stage) {
     var cols = [
-      'id, title, body, words, photos, to_name, to_device_id, from_name',
+      'id, title, body, words, photos, to_name, to_device_id, from_name, image_url',
       'id, title, body, words, photos',
       'id, title, body, words'
     ][stage || 0];
@@ -2286,7 +2332,7 @@
         words: parseWords(row.words),
         photos: parsePhotos(row.photos),
         cardId: typeof row.id === 'number' ? row.id : cardId,
-        imageUrl: null,
+        imageUrl: typeof row.image_url === 'string' ? row.image_url : null,
         toName: typeof row.to_name === 'string' ? row.to_name : (sealedTo || null),
         fromName: typeof row.from_name === 'string' ? row.from_name : (sealedFrom || null),
         chars: null
@@ -2497,6 +2543,8 @@
 
   function showArtwork(card) {
     currentCard = card;
+    var cgBtn = $('cardGoAllBtn');
+    if (cgBtn) cgBtn.hidden = !(card && typeof card.fromName === 'string' && nickname && card.fromName === nickname);
     if (card.cardId != null) shownCardId = card.cardId;
     // 開封されたので封印状態は解ける（アプリと同じ）
     pendingSealed = null;
@@ -2731,6 +2779,22 @@
     }
   }
 
+  // ================= 生成GO（答え終わったらGOで生成開始） =================
+  var GO_KEY = 'wave-go-sent';
+  function goSent() { try { return localStorage.getItem(GO_KEY) === '1'; } catch (e) { return false; } }
+  function markGoSent() { try { localStorage.setItem(GO_KEY, '1'); } catch (e) { /* noop */ } }
+  function updateGenGoBtn() {
+    var b = $('genGoBtn');
+    if (b) b.hidden = !(flowDone && !goSent());
+  }
+  function onGenGo() {
+    if (goSent()) return;
+    markGoSent();
+    updateGenGoBtn();
+    persistWord('go', 'go');
+    onGenerating({});
+  }
+
   function enterParty() {
     if (isScreen || flowDone) return;
     flowDone = true;
@@ -2754,6 +2818,7 @@
     }
     $('partyMain').hidden = false;
     renderRecipientRow();
+    updateGenGoBtn();
   }
 
   // ================= デザイン選択 =================
@@ -3352,7 +3417,7 @@
   }
   function fetchCardsStage(stage) {
     var cols = [
-      'id, title, body, words, photos, open_at, to_name, to_device_id, from_name',
+      'id, title, body, words, photos, open_at, to_name, to_device_id, from_name, image_url',
       'id, title, body, words, photos, open_at',
       'id, title, body, words, open_at',
       'id, title, body, words'
@@ -3376,7 +3441,7 @@
           toName: typeof r.to_name === 'string' ? r.to_name : null,
           toDeviceId: typeof r.to_device_id === 'string' ? r.to_device_id : null,
           fromName: typeof r.from_name === 'string' ? r.from_name : null,
-          imageUrl: null,
+          imageUrl: typeof r.image_url === 'string' ? r.image_url : null,
           chars: null
         };
       });
@@ -3624,6 +3689,17 @@
     });
     $('recipientRowBtn').addEventListener('click', openRecipientPicker);
     $('galleryBtn').addEventListener('click', openGallery);
+    $('genGoBtn').addEventListener('click', onGenGo);
+    $('cardGoAllBtn').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var ov = $('artworkOverlay');
+      ov.hidden = true;
+      ov.classList.remove('playing');
+      ov.classList.remove('delivered');
+      currentCard = null;
+      updateSealedChip();
+      openGallery();
+    });
     $('galleryBack').addEventListener('click', closeGallery);
     $('vpNow').addEventListener('click', function () { setViewPref('now'); });
     $('vpJan1').addEventListener('click', function () { setViewPref('jan1'); });
